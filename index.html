@@ -1,0 +1,1199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dinner Planner (Neo4j Viewer + Generator)</title>
+  <style>
+    :root{
+      --bg:#f8fafc; --panel:#fff; --accent:#1e3a8a; --accent-soft:#e0e7ff;
+      --text:#1f2937; --muted:#6b7280; --line:#e5e7eb; --shadow:0 10px 30px rgba(0,0,0,.06);
+      --danger:#b91c1c; --ok:#065f46;
+    }
+    body{margin:0;font-family:Georgia,"Times New Roman",serif;background:var(--bg);color:var(--text);}
+    header{padding:30px 20px 10px;max-width:1320px;margin:0 auto;}
+    h1{margin:0;font-size:30px;color:var(--accent);}
+    .sub{margin-top:6px;font-family:system-ui,sans-serif;font-size:14px;color:var(--muted);line-height:1.4;}
+    .grid{max-width:1320px;margin:0 auto;padding:20px;display:grid;grid-template-columns:440px 1fr;gap:24px;align-items:start;}
+    @media (max-width:1150px){.grid{grid-template-columns:1fr;}}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;}
+    .card .hd{padding:16px;background:var(--accent);color:#fff;font-family:system-ui,sans-serif;font-weight:600;font-size:14px;letter-spacing:.08em;text-transform:uppercase;}
+    .card .bd{padding:18px;}
+    label{display:block;font-family:system-ui,sans-serif;font-size:12px;color:var(--muted);margin:14px 0 6px;}
+    input,select,textarea{
+      width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid var(--line);
+      font-family:system-ui,sans-serif;font-size:14px;background:#fff;color:var(--text);
+      height:40px;
+    }
+    textarea{
+      height:40px;            /* <-- match date field height */
+      min-height:40px;
+      resize:vertical;        /* still allow expand if needed */
+      padding-top:9px;        /* make single-row textarea feel like input */
+      padding-bottom:9px;
+      line-height:20px;
+    }
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    @media (max-width:560px){.row{grid-template-columns:1fr;}}
+    .btn{
+      margin-top:16px;width:100%;padding:12px;border-radius:10px;border:none;background:var(--accent);
+      color:#fff;font-family:system-ui,sans-serif;font-weight:650;cursor:pointer;
+    }
+    .btn.secondary{margin-top:10px;background:#fff;color:var(--accent);border:1px solid var(--accent);}
+    .btn.ghost{margin-top:10px;background:transparent;color:var(--accent);border:1px solid var(--line);}
+    .btn:disabled{opacity:.6;cursor:not-allowed;}
+    .smallbtn{
+      border:1px solid var(--line);background:#fff;color:var(--accent);cursor:pointer;
+      padding:8px 10px;border-radius:10px;font-family:system-ui,sans-serif;font-weight:650;
+      height:40px;
+      display:inline-flex;align-items:center;
+    }
+    .smallbtn.danger{color:var(--danger);}
+    .smallbtn.primary{border-color:rgba(30,58,138,.35); background:var(--accent-soft);}
+    .status{margin-top:16px;font-family:system-ui,sans-serif;font-size:13px;color:var(--muted);line-height:1.45;white-space:pre-wrap;}
+    .status.error{color:var(--danger);}
+    .status.ok{color:var(--ok);}
+    .mono{font-family:ui-monospace,monospace;}
+    .divider{height:1px;background:var(--line);margin:14px 0 6px;}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;}
+    .tab{
+      font-family:system-ui,sans-serif;font-size:13px;font-weight:700;
+      border:1px solid var(--line); background:#fff; color:var(--accent);
+      padding:8px 10px;border-radius:999px;cursor:pointer;
+    }
+    .tab.active{background:var(--accent-soft);border-color:rgba(30,58,138,.25);}
+
+    /* Right side: cookbook view */
+    .page{padding:30px 36px 40px;}
+    .recipe-title{font-size:44px;margin:0 0 12px;color:var(--accent);}
+    .recipe-desc{font-family:system-ui,sans-serif;font-size:16px;color:var(--muted);max-width:90ch;margin-bottom:20px;line-height:1.6;}
+    .meta{display:flex;gap:12px;margin-bottom:30px;font-family:system-ui,sans-serif;font-size:13px;flex-wrap:wrap;}
+    .pill{background:var(--accent-soft);color:var(--accent);padding:6px 12px;border-radius:999px;font-weight:550;}
+    .cols{display:grid;grid-template-columns:240px 1fr;gap:46px;}
+    @media (max-width:900px){.cols{grid-template-columns:1fr;}}
+    h2{font-family:system-ui,sans-serif;font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin:0 0 12px;}
+    ul.ing{list-style:none;padding:0;margin:0;border-top:1px solid var(--line);}
+    ul.ing li{padding:10px 0;border-bottom:1px solid var(--line);font-family:system-ui,sans-serif;display:flex;justify-content:space-between;gap:12px;}
+    .amt{font-variant-numeric:tabular-nums;color:var(--muted);min-width:92px;text-align:right;white-space:nowrap;}
+    ol.steps{margin:0;padding-left:20px;}
+    ol.steps li{margin-bottom:16px;line-height:1.7;font-size:18px;}
+
+    /* Week view cards */
+    .weekHdr{
+      display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;
+      border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:16px;
+    }
+    .weekTitle{margin:0;color:var(--accent);font-size:30px;line-height:1.1;font-family:system-ui,sans-serif;font-weight:800;}
+    .weekSub{margin:6px 0 0;color:var(--muted);font-family:system-ui,sans-serif;font-size:13px;}
+    .weekGrid{display:grid;grid-template-columns:1fr;gap:12px;}
+    .dayCard{
+      border:1px solid var(--line);border-radius:14px;padding:14px 14px 12px;background:#fff;
+      box-shadow:0 6px 16px rgba(0,0,0,.04);
+    }
+    .dayTop{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline;}
+    .dayDate{font-family:system-ui,sans-serif;font-weight:800;color:var(--accent);letter-spacing:.02em;}
+    .dayName{font-size:20px;margin:8px 0 4px;}
+    .dayWish{font-family:system-ui,sans-serif;color:var(--muted);font-size:13px;margin:0;line-height:1.5;white-space:pre-wrap;}
+    .dayBtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+
+    /* Planning view */
+    .minihelp{font-family:system-ui,sans-serif;color:var(--muted);font-size:12px;line-height:1.4;margin-top:8px;}
+    .listbox{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff;}
+    .listrow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;margin-bottom:10px;}
+    .listrow:last-child{margin-bottom:0;}
+
+    /* NEW day row layout: date + buttons on one row, wish on full row */
+    .genrow{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:12px;}
+    .genTop{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;}
+    .genWish{display:block;width:100%;}
+    @media (max-width:560px){
+      .genTop{grid-template-columns:1fr;gap:8px;}
+      .genTop .smallbtn{width:100%;justify-content:center;}
+    }
+
+    .progress{font-family:system-ui,sans-serif;font-size:12px;color:var(--muted);margin-top:10px;white-space:pre-wrap;}
+    .hidden{display:none!important;}
+  </style>
+</head>
+
+<body>
+<header>
+  <h1>Dinner Planner</h1>
+  <div class="sub">
+    Viewer: list & render dinners for a specific <span class="mono">:User{id}</span>.<br/>
+    Generator: store allergies/preferences on the user and generate dinners using <span class="mono">ai.text.structuredCompletion</span>.
+  </div>
+</header>
+
+<div class="grid">
+  <section class="card">
+    <div class="hd">Connection & Controls</div>
+    <div class="bd">
+      <div class="tabs">
+        <button class="tab active" id="tabViewer">Viewer</button>
+        <button class="tab" id="tabPlanning">Dinner Planning</button>
+      </div>
+
+      <label for="host">Host</label>
+      <input id="host" placeholder="https://xxxx.databases.neo4j.io" />
+
+      <div class="row">
+        <div>
+          <label for="db">Database</label>
+          <input id="db" value="neo4j" />
+        </div>
+        <div>
+          <label for="userId">User ID</label>
+          <input id="userId" inputmode="numeric" placeholder="1" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="authMode">Auth</label>
+          <select id="authMode">
+            <option value="basic" selected>Basic</option>
+            <option value="bearer">Bearer</option>
+          </select>
+        </div>
+        <div>
+          <label for="weekDate">Week (pick any date in week)</label>
+          <input id="weekDate" type="date" />
+        </div>
+      </div>
+
+      <div id="basicFields">
+        <div class="row">
+          <div>
+            <label for="user">Username</label>
+            <input id="user" value="neo4j" />
+          </div>
+          <div>
+            <label for="pass">Password</label>
+            <input id="pass" type="password" />
+          </div>
+        </div>
+      </div>
+
+      <div id="bearerFields" class="hidden">
+        <label for="token">Bearer Token</label>
+        <input id="token" type="password" />
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Viewer controls -->
+      <div id="viewerControls">
+        <label for="recipeSelect">Dinner / Recipe</label>
+        <select id="recipeSelect" disabled>
+          <option value="">Load dinners first…</option>
+        </select>
+
+        <button class="btn secondary" id="loadAllBtn">Load all dinners for user</button>
+        <button class="btn secondary" id="loadWeekBtn">Load dinners for selected week</button>
+
+        <div class="row">
+          <button class="btn" id="loadBtn" disabled>View selected recipe</button>
+          <button class="btn ghost" id="weekViewBtn" disabled>Week view (right panel)</button>
+        </div>
+
+        <button class="btn ghost" id="goPlanningBtn">Dinner Planning</button>
+      </div>
+
+      <!-- Planning controls -->
+      <div id="planningControls" class="hidden">
+        <div class="minihelp">
+          OpenAI API key + avoid-days are stored in your browser (localStorage). Allergies & preferences are stored on the <span class="mono">:User</span> node.
+        </div>
+
+        <label for="openaiKey">OpenAI API key</label>
+        <input id="openaiKey" type="password" placeholder="sk-..." />
+
+        <div class="row">
+          <div>
+            <label for="household">Household size</label>
+            <input id="household" inputmode="numeric" placeholder="2" />
+          </div>
+          <div>
+            <label for="avoidDays">Days to avoid similar dishes</label>
+            <input id="avoidDays" inputmode="numeric" placeholder="30" />
+          </div>
+        </div>
+
+        <label>Allergies (stored on :User as list of strings)</label>
+        <div class="listbox" id="allergiesBox"></div>
+        <button class="btn secondary" id="addAllergyBtn">Add allergy</button>
+
+        <label>Preferences (stored on :User as list of strings)</label>
+        <div class="listbox" id="preferencesBox"></div>
+        <button class="btn secondary" id="addPrefBtn">Add preference</button>
+
+        <div class="divider"></div>
+
+        <label>Dates to generate</label>
+        <div class="listbox" id="datesBox"></div>
+        <button class="btn secondary" id="addDateBtn">Add day</button>
+
+        <div class="row">
+          <button class="btn" id="generateBtn">Generate all</button>
+          <button class="btn secondary" id="generateWeekBtn">Generate week (Mon–Sun)</button>
+        </div>
+
+        <div class="progress" id="progress"></div>
+
+        <button class="btn ghost" id="backToViewerBtn">Back to viewer</button>
+      </div>
+
+      <div class="status" id="status"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="hd" id="rightTitle">Cookbook Page</div>
+    <div class="page" id="output">
+      <div class="recipe-title" style="opacity:.6;">No recipe loaded</div>
+      <div class="recipe-desc">Load dinners for a user, then view a recipe or show a week view.</div>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  // Schema must be a JSON Schema object with top-level type: "object"
+  const SCHEMA = {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: 'The name of the recipe. Avoid mentioning how many it is for in the name.' },
+      description: { type: 'string', description: 'A textual description/summary of the recipe. Avoid mentioning how many it is for in the description.' },
+      totalTimeMinutes: { type: 'integer', minimum: 1, description: 'Estimated total time to make the recipe, in minutes.' },
+      ingredients: {
+        type: 'array',
+        description: 'List of ingredients with quantities.',
+        minItems: 1,
+        items: {
+          type: 'object',
+          properties: {
+            displayName: {
+              type: 'string',
+              description: 'The full ingredient text exactly as it should appear in the recipe, including preparation notes or alternatives (e.g., "Pecorino Romano, finely grated (or half Parmesan)"). Avoid measurements in the display name.'
+            },
+            canonicalName: {
+              type: 'string',
+              description: 'The normalized base name of the ingredient without preparation details or alternatives. This should represent the core ingredient for shopping lists and ingredient matching (e.g., "Pecorino Romano").'
+            },
+            unit: {
+              type: 'string',
+              description: 'Measurement unit.',
+              enum: ['g', 'kg', 'ml', 'l', 'tsp', 'tbsp', 'cup', 'pcs', 'slice', 'clove', 'pinch']
+            },
+            amount: { type: 'number', minimum: 0, description: 'Amount of the specified unit.' }
+          },
+          required: ['displayName', 'canonicalName', 'unit', 'amount'],
+          additionalProperties: false
+        }
+      },
+      instructions: {
+        type: 'array',
+        description: 'Step-by-step instructions in order.',
+        minItems: 1,
+        items: {
+          type: 'object',
+          properties: {
+            stepNumber: { type: 'integer', minimum: 1, description: 'The sequential number of the step, starting from 1.' },
+            text: { type: 'string', description: 'Description of this step.' }
+          },
+          required: ['stepNumber', 'text'],
+          additionalProperties: false
+        }
+      }
+    },
+    required: ['name', 'description', 'totalTimeMinutes', 'ingredients', 'instructions'],
+    additionalProperties: false
+  };
+
+  const $ = (id) => document.getElementById(id);
+
+  const hostEl = $("host");
+  const dbEl = $("db");
+  const userIdEl = $("userId");
+  const authModeEl = $("authMode");
+  const userEl = $("user");
+  const passEl = $("pass");
+  const tokenEl = $("token");
+  const weekDateEl = $("weekDate");
+  const basicFields = $("basicFields");
+  const bearerFields = $("bearerFields");
+
+  const tabViewer = $("tabViewer");
+  const tabPlanning = $("tabPlanning");
+  const viewerControls = $("viewerControls");
+  const planningControls = $("planningControls");
+
+  const recipeSelectEl = $("recipeSelect");
+  const loadAllBtn = $("loadAllBtn");
+  const loadWeekBtn = $("loadWeekBtn");
+  const loadBtn = $("loadBtn");
+  const weekViewBtn = $("weekViewBtn");
+  const goPlanningBtn = $("goPlanningBtn");
+
+  const rightTitle = $("rightTitle");
+  const outputEl = $("output");
+  const statusEl = $("status");
+
+  const openaiKeyEl = $("openaiKey");
+  const householdEl = $("household");
+  const avoidDaysEl = $("avoidDays");
+  const allergiesBox = $("allergiesBox");
+  const preferencesBox = $("preferencesBox");
+  const addAllergyBtn = $("addAllergyBtn");
+  const addPrefBtn = $("addPrefBtn");
+  const datesBox = $("datesBox");
+  const addDateBtn = $("addDateBtn");
+  const generateBtn = $("generateBtn");
+  const generateWeekBtn = $("generateWeekBtn");
+  const progressEl = $("progress");
+  const backToViewerBtn = $("backToViewerBtn");
+
+  const LS = {
+    host: "neo4j_dinner_host",
+    db: "neo4j_dinner_db",
+    authMode: "neo4j_dinner_authmode",
+    username: "neo4j_dinner_username",
+    userId: "neo4j_dinner_userId",
+    weekDate: "neo4j_dinner_weekDate",
+    openaiKey: "neo4j_dinner_openaiKey",
+    household: "neo4j_dinner_household",
+    avoidDays: "neo4j_dinner_avoidDays"
+  };
+
+  // entries: {rid,date,name,wish}
+  let lastLoadedEntries = [];
+  let lastLoadedWeek = null; // {start,end}
+
+  function setStatus(msg, kind="") {
+    statusEl.textContent = msg || "";
+    statusEl.className = "status" + (kind ? (" " + kind) : "");
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  function formatAmount(n) {
+    if (n === null || n === undefined || n === "") return "";
+    const num = Number(n);
+    if (!Number.isFinite(num)) return String(n);
+    return (Math.round(num * 1000) / 1000).toString();
+  }
+
+  function asInt(s) {
+    const n = Number(String(s ?? "").trim());
+    return Number.isFinite(n) ? Math.trunc(n) : NaN;
+  }
+
+  function toISODate(d) {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  function todayISO() { return toISODate(new Date()); }
+  function parseISODate(iso) {
+    const [y,m,d] = String(iso).split("-").map(Number);
+    return new Date(y, (m||1)-1, d||1);
+  }
+  function addDays(iso, days) {
+    const d = parseISODate(iso);
+    d.setDate(d.getDate() + days);
+    return toISODate(d);
+  }
+  function weekBoundsISO(anyDateIso) {
+    const d = parseISODate(anyDateIso);
+    const day = d.getDay(); // 0 Sun, 1 Mon...
+    const diffToMon = (day === 0) ? -6 : (1 - day);
+    const mon = new Date(d);
+    mon.setDate(d.getDate() + diffToMon);
+    const sun = new Date(mon);
+    sun.setDate(mon.getDate() + 6);
+    return { start: toISODate(mon), end: toISODate(sun) };
+  }
+
+  function buildAuthHeader() {
+    if (authModeEl.value === "basic") {
+      const raw = `${userEl.value ?? ""}:${passEl.value ?? ""}`;
+      return "Basic " + btoa(unescape(encodeURIComponent(raw)));
+    }
+    const t = tokenEl.value ?? "";
+    return "Bearer " + btoa(unescape(encodeURIComponent(t)));
+  }
+
+  function getBase() {
+    const host = (hostEl.value || "").trim().replace(/\/+$/g, "");
+    const db = (dbEl.value || "neo4j").trim();
+    const userId = asInt(userIdEl.value);
+    if (!host) throw new Error("Please enter Host (e.g. https://xxxx.databases.neo4j.io).");
+    if (!db) throw new Error("Please enter Database (e.g. neo4j).");
+    if (!Number.isFinite(userId)) throw new Error("Please enter a numeric User ID.");
+    return { host, db, userId };
+  }
+
+  async function runQuery(statement, parameters) {
+    const { host, db } = getBase();
+    const url = `${host}/db/${encodeURIComponent(db)}/query/v2`;
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": buildAuthHeader()
+      },
+      body: JSON.stringify({ statement, parameters: parameters || {} })
+    });
+
+    const json = await res.json().catch(() => ({}));
+    if (res.status === 401) throw new Error("401 Unauthorized (check credentials/token).");
+    if (Array.isArray(json?.errors) && json.errors.length) {
+      const msg = json.errors.map(e => `${e.code}: ${e.message}`).join("\n");
+      throw new Error(msg);
+    }
+    return json;
+  }
+
+  function getTable(json) {
+    return { fields: json?.data?.fields || [], values: json?.data?.values || [] };
+  }
+
+  function saveConnToLocalStorage() {
+    localStorage.setItem(LS.host, hostEl.value || "");
+    localStorage.setItem(LS.db, dbEl.value || "");
+    localStorage.setItem(LS.authMode, authModeEl.value || "basic");
+    localStorage.setItem(LS.username, userEl.value || "");
+    localStorage.setItem(LS.userId, userIdEl.value || "");
+    localStorage.setItem(LS.weekDate, weekDateEl.value || "");
+  }
+
+  function loadConnFromLocalStorage() {
+    const host = localStorage.getItem(LS.host);
+    const db = localStorage.getItem(LS.db);
+    const mode = localStorage.getItem(LS.authMode);
+    const username = localStorage.getItem(LS.username);
+    const userId = localStorage.getItem(LS.userId);
+    const weekDate = localStorage.getItem(LS.weekDate);
+
+    if (host) hostEl.value = host;
+    if (db) dbEl.value = db;
+    if (mode) authModeEl.value = mode;
+    if (username) userEl.value = username;
+    if (userId) userIdEl.value = userId;
+    weekDateEl.value = weekDate || todayISO();
+
+    basicFields.classList.toggle("hidden", authModeEl.value !== "basic");
+    bearerFields.classList.toggle("hidden", authModeEl.value !== "bearer");
+  }
+
+  [hostEl, dbEl, authModeEl, userEl, userIdEl, weekDateEl].forEach(el => {
+    el.addEventListener("change", saveConnToLocalStorage);
+    el.addEventListener("blur", saveConnToLocalStorage);
+  });
+
+  authModeEl.addEventListener("change", () => {
+    basicFields.classList.toggle("hidden", authModeEl.value !== "basic");
+    bearerFields.classList.toggle("hidden", authModeEl.value !== "bearer");
+    saveConnToLocalStorage();
+  });
+
+  function setMode(mode) {
+    const isViewer = mode === "viewer";
+    tabViewer.classList.toggle("active", isViewer);
+    tabPlanning.classList.toggle("active", !isViewer);
+    viewerControls.classList.toggle("hidden", !isViewer);
+    planningControls.classList.toggle("hidden", isViewer);
+
+    setStatus("");
+    progressEl.textContent = "";
+
+    if (isViewer) {
+      rightTitle.textContent = "Cookbook Page";
+      outputEl.innerHTML = `
+        <div class="recipe-title" style="opacity:.6;">No recipe loaded</div>
+        <div class="recipe-desc">Load dinners for a user, then view a recipe or show a week view.</div>
+      `;
+    } else {
+      rightTitle.textContent = "Dinner Planning";
+      outputEl.innerHTML = `
+        <div class="recipe-desc" style="margin:0;">
+          Configure generation on the left, then generate. Wishes are shown in week view.
+        </div>
+      `;
+      initPlanningFromLocalStorage();
+      loadUserSettingsFromDb().catch(e => setStatus(e.message || String(e), "error"));
+    }
+  }
+
+  tabViewer.addEventListener("click", () => setMode("viewer"));
+  tabPlanning.addEventListener("click", () => setMode("planning"));
+  goPlanningBtn.addEventListener("click", () => setMode("planning"));
+  backToViewerBtn.addEventListener("click", () => setMode("viewer"));
+
+  // -----------------------------
+  // Viewer: dropdown population
+  // -----------------------------
+  function setSelectLoading() {
+    recipeSelectEl.disabled = true;
+    loadBtn.disabled = true;
+    weekViewBtn.disabled = true;
+    recipeSelectEl.innerHTML = `<option value="">Loading…</option>`;
+  }
+
+  function setSelectEmpty(msg) {
+    recipeSelectEl.disabled = true;
+    loadBtn.disabled = true;
+    weekViewBtn.disabled = true;
+    recipeSelectEl.innerHTML = `<option value="">${escapeHtml(msg)}</option>`;
+  }
+
+  function setSelectOptions(entries) {
+    const opts = entries.map(e => {
+      const label = `${e.date} — ${e.name}`;
+      return `<option value="${escapeHtml(e.rid)}">${escapeHtml(label)}</option>`;
+    }).join("");
+    recipeSelectEl.innerHTML = `<option value="">Select a dinner…</option>` + opts;
+    recipeSelectEl.disabled = false;
+    loadBtn.disabled = true;
+    weekViewBtn.disabled = false;
+  }
+
+  recipeSelectEl.addEventListener("change", () => {
+    loadBtn.disabled = recipeSelectEl.disabled || !recipeSelectEl.value;
+  });
+
+  async function loadAllDinnersForUser() {
+    setStatus(""); setSelectLoading();
+    loadAllBtn.disabled = true; loadWeekBtn.disabled = true;
+
+    try {
+      const { userId } = getBase();
+      const statement =
+        `MATCH (u:User {id: $userId})-[d:DINNER]->(r:Recipe) ` +
+        `RETURN elementId(r) AS rid, toString(d.date) AS date, r.name AS name, coalesce(d.wish,"") AS wish ` +
+        `ORDER BY d.date DESC, name ASC`;
+
+      const json = await runQuery(statement, { userId });
+      const { fields, values } = getTable(json);
+
+      const ridIdx = fields.indexOf("rid");
+      const dateIdx = fields.indexOf("date");
+      const nameIdx = fields.indexOf("name");
+      const wishIdx = fields.indexOf("wish");
+
+      const entries = values.map(row => ({
+        rid: row[ridIdx],
+        date: row[dateIdx] || "",
+        name: row[nameIdx] || "(Unnamed recipe)",
+        wish: row[wishIdx] || ""
+      })).filter(e => e.rid && e.date);
+
+      lastLoadedEntries = entries;
+      lastLoadedWeek = null;
+
+      if (!entries.length) {
+        setSelectEmpty("No dinners found for this user.");
+        setStatus("No dinners found for this user.", "error");
+        return;
+      }
+
+      setSelectOptions(entries);
+      setStatus(`Loaded ${entries.length} dinner(s) for user ${userId}.`, "ok");
+    } catch (e) {
+      lastLoadedEntries = []; lastLoadedWeek = null;
+      setSelectEmpty("Load dinners first…");
+      setStatus(e?.message || String(e), "error");
+    } finally {
+      loadAllBtn.disabled = false; loadWeekBtn.disabled = false;
+    }
+  }
+
+  async function loadWeekDinnersForUser() {
+    setStatus(""); setSelectLoading();
+    loadAllBtn.disabled = true; loadWeekBtn.disabled = true;
+
+    try {
+      const { userId } = getBase();
+      const anyDate = weekDateEl.value || todayISO();
+      const { start, end } = weekBoundsISO(anyDate);
+
+      const statement =
+        `MATCH (u:User {id: $userId})-[d:DINNER]->(r:Recipe) ` +
+        `WHERE d.date >= date($start) AND d.date <= date($end) ` +
+        `RETURN elementId(r) AS rid, toString(d.date) AS date, r.name AS name, coalesce(d.wish,"") AS wish ` +
+        `ORDER BY d.date ASC, name ASC`;
+
+      const json = await runQuery(statement, { userId, start, end });
+      const { fields, values } = getTable(json);
+
+      const ridIdx = fields.indexOf("rid");
+      const dateIdx = fields.indexOf("date");
+      const nameIdx = fields.indexOf("name");
+      const wishIdx = fields.indexOf("wish");
+
+      const entries = values.map(row => ({
+        rid: row[ridIdx],
+        date: row[dateIdx] || "",
+        name: row[nameIdx] || "(Unnamed recipe)",
+        wish: row[wishIdx] || ""
+      })).filter(e => e.rid && e.date);
+
+      lastLoadedEntries = entries;
+      lastLoadedWeek = { start, end };
+
+      if (!entries.length) {
+        setSelectEmpty(`No dinners found in week ${start} to ${end}.`);
+        setStatus(`No dinners found in week ${start} to ${end}.`, "error");
+        return;
+      }
+
+      setSelectOptions(entries);
+      setStatus(`Loaded ${entries.length} dinner(s) in week ${start} to ${end}.`, "ok");
+
+      renderWeekView(entries, start, end);
+    } catch (e) {
+      lastLoadedEntries = []; lastLoadedWeek = null;
+      setSelectEmpty("Load dinners first…");
+      setStatus(e?.message || String(e), "error");
+    } finally {
+      loadAllBtn.disabled = false; loadWeekBtn.disabled = false;
+    }
+  }
+
+  // -----------------------------
+  // Right panel: week view (shows wish)
+  // -----------------------------
+  function renderWeekView(entries, start, end) {
+    rightTitle.textContent = "Week View";
+
+    const hdr = `
+      <div class="weekHdr">
+        <div>
+          <div class="weekTitle">Week plan</div>
+          <div class="weekSub">${escapeHtml(start)} to ${escapeHtml(end)} — ${entries.length} dinner(s)</div>
+        </div>
+        <div class="dayBtns">
+          <button class="smallbtn primary" id="wvReloadBtn" type="button">Reload this week</button>
+        </div>
+      </div>
+    `;
+
+    const cards = entries.map(e => {
+      const wish = (e.wish || "").trim();
+      return `
+        <div class="dayCard">
+          <div class="dayTop">
+            <div class="dayDate">${escapeHtml(e.date)}</div>
+            <div class="dayBtns">
+              <button class="smallbtn primary" data-action="view" data-rid="${escapeHtml(e.rid)}" type="button">View</button>
+            </div>
+          </div>
+          <div class="dayName">${escapeHtml(e.name)}</div>
+          <p class="dayWish">${wish ? escapeHtml(wish) : `<span style="opacity:.7;">(No wish stored)</span>`}</p>
+        </div>
+      `;
+    }).join("");
+
+    outputEl.innerHTML = hdr + `<div class="weekGrid">${cards}</div>`;
+
+    const reloadBtn = document.getElementById("wvReloadBtn");
+    if (reloadBtn) reloadBtn.addEventListener("click", () => loadWeekDinnersForUser());
+
+    Array.from(outputEl.querySelectorAll('button[data-action="view"]')).forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const rid = btn.getAttribute("data-rid");
+        if (!rid) return;
+        await loadRecipeByRidForUser(rid);
+      });
+    });
+  }
+
+  weekViewBtn.addEventListener("click", () => {
+    if (!lastLoadedEntries.length) {
+      setStatus("Load dinners first.", "error");
+      return;
+    }
+    let start, end;
+    if (lastLoadedWeek?.start && lastLoadedWeek?.end) {
+      start = lastLoadedWeek.start;
+      end = lastLoadedWeek.end;
+    } else {
+      const dates = lastLoadedEntries.map(e => e.date).filter(Boolean).sort();
+      start = dates[0] || "";
+      end = dates[dates.length - 1] || "";
+    }
+    renderWeekView(lastLoadedEntries, start, end);
+  });
+
+  // -----------------------------
+  // Viewer: load recipe details (also returns wish)
+  // -----------------------------
+  async function loadRecipeByRidForUser(rid) {
+    setStatus("");
+    try {
+      const { userId } = getBase();
+
+      const statement =
+        `MATCH (u:User {id: $userId})-[d:DINNER]->(r:Recipe) ` +
+        `WHERE elementId(r) = $rid ` +
+        `OPTIONAL MATCH (r)-[ir:INGREDIENT]->(i:Ingredient) ` +
+        `OPTIONAL MATCH (i)-[a:AMOUNT]->(un:Unit) ` +
+        `WITH d, r, ir, i, a, un ORDER BY ir.number ASC ` +
+        `RETURN ` +
+        `toString(d.date) AS dinnerDate, coalesce(d.wish,"") AS dinnerWish, ` +
+        `r{.name,.description,.servings,.cookingTime,.instructions, elementId: elementId(r)} AS recipe, ` +
+        `collect(CASE WHEN i IS NULL THEN null ELSE {name:i.name, amount:a.amount, unit:un.name} END) AS ingredients`;
+
+      const json = await runQuery(statement, { userId, rid });
+      const { fields, values } = getTable(json);
+      if (!values.length) throw new Error("No recipe returned (is it valid for this user?).");
+
+      const row0 = values[0];
+      const dinnerDate = row0[fields.indexOf("dinnerDate")] || "";
+      const dinnerWish = row0[fields.indexOf("dinnerWish")] || "";
+      const recipe = row0[fields.indexOf("recipe")];
+      const ingredients = (row0[fields.indexOf("ingredients")] || []).filter(x => x);
+
+      renderCookbook(recipe, ingredients, dinnerDate, dinnerWish);
+      setStatus("Loaded successfully.", "ok");
+    } catch (e) {
+      setStatus(e?.message || String(e), "error");
+    }
+  }
+
+  function renderCookbook(recipe, ingredients, dinnerDate, dinnerWish) {
+    rightTitle.textContent = "Cookbook Page";
+
+    const instr = Array.isArray(recipe?.instructions) ? recipe.instructions : [];
+    const safeTitle = escapeHtml(recipe?.name || "Untitled recipe");
+    const safeDesc = escapeHtml(recipe?.description || "");
+    const wish = (dinnerWish || "").trim();
+
+    outputEl.innerHTML = `
+      <div class="recipe-title">${safeTitle}</div>
+      ${safeDesc ? `<div class="recipe-desc">${safeDesc}</div>` : ``}
+
+      <div class="meta">
+        ${dinnerDate ? `<span class="pill">Dinner date ${escapeHtml(dinnerDate)}</span>` : ``}
+        ${recipe?.servings != null ? `<span class="pill">Serves ${escapeHtml(recipe.servings)}</span>` : ``}
+        ${recipe?.cookingTime != null ? `<span class="pill">${escapeHtml(recipe.cookingTime)} min</span>` : ``}
+      </div>
+
+      ${wish ? `<div class="recipe-desc" style="margin-top:-8px;"><strong>Wish:</strong> ${escapeHtml(wish)}</div>` : ``}
+
+      <div class="cols">
+        <div>
+          <h2>Ingredients</h2>
+          ${
+            ingredients.length
+              ? `<ul class="ing">${
+                  ingredients.map(i => {
+                    const amt = formatAmount(i.amount);
+                    const unit = (i.unit ?? "").toString();
+                    const amtText = (amt || unit) ? `${escapeHtml(amt)} ${escapeHtml(unit)}`.trim() : "";
+                    return `
+                      <li>
+                        <span>${escapeHtml(i.name ?? "")}</span>
+                        <span class="amt">${amtText || "&nbsp;"}</span>
+                      </li>`;
+                  }).join("")
+                }</ul>`
+              : `<div class="recipe-desc" style="margin:0;">No ingredients found.</div>`
+          }
+        </div>
+
+        <div>
+          <h2>Method</h2>
+          ${
+            instr.length
+              ? `<ol class="steps">${instr.map(step => `<li>${escapeHtml(step)}</li>`).join("")}</ol>`
+              : `<div class="recipe-desc" style="margin:0;">No instructions found.</div>`
+          }
+        </div>
+      </div>
+    `;
+  }
+
+  loadAllBtn.addEventListener("click", () => { saveConnToLocalStorage(); loadAllDinnersForUser(); });
+  loadWeekBtn.addEventListener("click", () => { saveConnToLocalStorage(); loadWeekDinnersForUser(); });
+  loadBtn.addEventListener("click", async () => {
+    saveConnToLocalStorage();
+    const rid = recipeSelectEl.value;
+    if (!rid) { setStatus("Select a dinner first.", "error"); return; }
+    await loadRecipeByRidForUser(rid);
+  });
+
+  // -----------------------------
+  // Planning: localStorage init
+  // -----------------------------
+  function savePlanningToLocalStorage() {
+    localStorage.setItem(LS.openaiKey, openaiKeyEl.value || "");
+    localStorage.setItem(LS.household, householdEl.value || "");
+    localStorage.setItem(LS.avoidDays, avoidDaysEl.value || "30");
+  }
+
+  function initPlanningFromLocalStorage() {
+    const k = localStorage.getItem(LS.openaiKey);
+    const h = localStorage.getItem(LS.household);
+    const a = localStorage.getItem(LS.avoidDays);
+
+    if (k !== null && openaiKeyEl.value !== k) openaiKeyEl.value = k;
+    if (h !== null && householdEl.value !== h) householdEl.value = h;
+    if (a !== null && avoidDaysEl.value !== a) avoidDaysEl.value = a;
+    if (!avoidDaysEl.value) avoidDaysEl.value = "30";
+
+    if (!datesBox.dataset.inited) {
+      datesBox.dataset.inited = "1";
+      datesBox.innerHTML = "";
+      addGenerationRow(addDays(todayISO(), 1), "");
+    }
+  }
+
+  [openaiKeyEl, householdEl, avoidDaysEl].forEach(el => {
+    el.addEventListener("change", savePlanningToLocalStorage);
+    el.addEventListener("blur", savePlanningToLocalStorage);
+  });
+
+  // -----------------------------
+  // Planning: list editors (allergies/preferences)
+  // -----------------------------
+  function renderStringList(boxEl, values) {
+    const rows = (values || []).map((v) => `
+      <div class="listrow">
+        <input value="${escapeHtml(v)}" />
+        <button class="smallbtn danger" type="button">Remove</button>
+      </div>
+    `).join("");
+
+    boxEl.innerHTML = rows || `<div class="minihelp">No items yet.</div>`;
+
+    Array.from(boxEl.querySelectorAll(".listrow")).forEach(row => {
+      row.querySelector("button").addEventListener("click", () => {
+        row.remove();
+        if (!boxEl.querySelector(".listrow")) boxEl.innerHTML = `<div class="minihelp">No items yet.</div>`;
+      });
+    });
+  }
+
+  function getStringListFromBox(boxEl) {
+    return Array.from(boxEl.querySelectorAll(".listrow input"))
+      .map(inp => (inp.value || "").trim())
+      .filter(Boolean);
+  }
+
+  function addStringRow(boxEl, initial="") {
+    const helper = boxEl.querySelector(".minihelp");
+    if (helper) helper.remove();
+
+    const row = document.createElement("div");
+    row.className = "listrow";
+    row.innerHTML = `
+      <input value="${escapeHtml(initial)}" />
+      <button class="smallbtn danger" type="button">Remove</button>
+    `;
+
+    row.querySelector("button").addEventListener("click", () => {
+      row.remove();
+      if (!boxEl.querySelector(".listrow")) boxEl.innerHTML = `<div class="minihelp">No items yet.</div>`;
+    });
+
+    boxEl.appendChild(row);
+  }
+
+  addAllergyBtn.addEventListener("click", () => addStringRow(allergiesBox, ""));
+  addPrefBtn.addEventListener("click", () => addStringRow(preferencesBox, ""));
+
+  // -----------------------------
+  // Planning: NEW day row layout
+  // -----------------------------
+  function addGenerationRow(dateIso, wish) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "genrow";
+    wrapper.innerHTML = `
+      <div class="genTop">
+        <input type="date" value="${escapeHtml(dateIso)}" />
+        <button class="smallbtn primary" data-action="regen" type="button">Regenerate</button>
+        <button class="smallbtn danger" data-action="remove" type="button">Remove</button>
+      </div>
+      <textarea class="genWish" placeholder="Wish / notes for this day (optional)">${escapeHtml(wish || "")}</textarea>
+    `;
+
+    wrapper.querySelector('button[data-action="remove"]').addEventListener("click", () => wrapper.remove());
+
+    wrapper.querySelector('button[data-action="regen"]').addEventListener("click", async () => {
+      const date = wrapper.querySelector('input[type="date"]').value;
+      const wishText = wrapper.querySelector("textarea").value || "";
+      if (!date) { setStatus("Pick a date first.", "error"); return; }
+      await generateRows([{ date, wish: wishText }], { replaceExisting: true, showAfter: "week" });
+    });
+
+    datesBox.appendChild(wrapper);
+  }
+
+  function getGenerationRows() {
+    return Array.from(datesBox.querySelectorAll(".genrow")).map(row => ({
+      date: row.querySelector('input[type="date"]').value,
+      wish: row.querySelector("textarea").value || ""
+    })).filter(r => r.date);
+  }
+
+  addDateBtn.addEventListener("click", () => {
+    const rows = getGenerationRows();
+    const last = rows.length ? rows[rows.length - 1].date : addDays(todayISO(), 1);
+    addGenerationRow(addDays(last, 1), "");
+  });
+
+  generateWeekBtn.addEventListener("click", () => {
+    const anyDate = weekDateEl.value || todayISO();
+    const { start } = weekBoundsISO(anyDate);
+    datesBox.innerHTML = "";
+    let d = start;
+    for (let i=0;i<7;i++) {
+      addGenerationRow(d, "");
+      d = addDays(d, 1);
+    }
+    setStatus("Prepared Mon–Sun generation rows for the selected week.", "ok");
+  });
+
+  // -----------------------------
+  // Planning: load/save user settings
+  // -----------------------------
+  async function loadUserSettingsFromDb() {
+    setStatus("");
+    const { userId } = getBase();
+    const statement =
+      `MATCH (u:User {id: $userId}) ` +
+      `RETURN coalesce(u.allergies, []) AS allergies, coalesce(u.preferences, []) AS preferences`;
+
+    const json = await runQuery(statement, { userId });
+    const { fields, values } = getTable(json);
+    if (!values.length) throw new Error(`User ${userId} not found.`);
+
+    const row = values[0];
+    renderStringList(allergiesBox, row[fields.indexOf("allergies")] || []);
+    renderStringList(preferencesBox, row[fields.indexOf("preferences")] || []);
+    setStatus("Loaded allergies & preferences from the user node.", "ok");
+  }
+
+  async function saveUserSettingsToDb() {
+    const { userId } = getBase();
+    const allergies = getStringListFromBox(allergiesBox);
+    const preferences = getStringListFromBox(preferencesBox);
+
+    const statement =
+      `MATCH (u:User {id: $userId}) ` +
+      `SET u.allergies = $allergies, u.preferences = $preferences ` +
+      `RETURN true AS ok`;
+
+    await runQuery(statement, { userId, allergies, preferences });
+  }
+
+  userIdEl.addEventListener("change", () => {
+    saveConnToLocalStorage();
+    if (!planningControls.classList.contains("hidden")) {
+      loadUserSettingsFromDb().catch(e => setStatus(e.message || String(e), "error"));
+    }
+  });
+
+  // -----------------------------
+  // Planning: recents
+  // -----------------------------
+  async function fetchRecentNames(userId, fromIso, toIso) {
+    const statement =
+      `MATCH (u:User {id: $userId})-[d:DINNER]->(r:Recipe) ` +
+      `WHERE d.date >= date($from) AND d.date <= date($to) ` +
+      `RETURN r.name AS name ORDER BY d.date DESC, name ASC`;
+
+    const json = await runQuery(statement, { userId, from: fromIso, to: toIso });
+    const { fields, values } = getTable(json);
+    const idx = fields.indexOf("name");
+    return values.map(r => r[idx]).filter(Boolean);
+  }
+
+  // -----------------------------
+  // Planning: generator query
+  // - Stores wish on the DINNER relationship: {date, wish}
+  // -----------------------------
+  async function generateForDate(params, { replaceExisting } = { replaceExisting: false }) {
+    const prelude = replaceExisting
+      ? (
+        `MATCH (user:User {id: $userId}) ` +
+        `OPTIONAL MATCH (user)-[oldRel:DINNER]->(oldR:Recipe) ` +
+        `WHERE oldRel.date = date($date) ` +
+        `WITH user, oldRel, oldR ` +
+        `CALL { WITH oldRel WHERE oldRel IS NOT NULL DELETE oldRel RETURN 0 AS _ } ` +
+        `CALL { WITH oldR WHERE oldR IS NOT NULL AND NOT (oldR)<-[:DINNER]-() DETACH DELETE oldR RETURN 0 AS __ } ` +
+        `WITH user `
+      )
+      : `MATCH (user:User {id: $userId}) WITH user `;
+
+    const statement =
+      prelude +
+      `WITH user, ai.text.structuredCompletion(` +
+      `  "Can you give me a recipe to these specifications: " + ` +
+      `    "Date: " + toString(date($date)) + "; " + ` +
+      `    "Number of servings: " + toString($household) + "; " + ` +
+      `    "Avoid ingredients: " + apoc.text.join($allergies, ", ") + "; " + ` +
+      `    "Preferences: " + apoc.text.join($preferences, ", ") + "; " + ` +
+      `    "Avoid dishes similar to: " + apoc.text.join($recent, ", ") + "; " + ` +
+      `    "Description of what I want: " + $wish, ` +
+      `  $schema, ` +
+      `  "OpenAI", ` +
+      `  {token: $apiKey, model: "gpt-5.2"} ) AS recipe ` +
+      `CREATE (r:Recipe {name: recipe.name, description: recipe.description, servings: $household, cookingTime: recipe.totalTimeMinutes}) ` +
+      `SET r.embedding = ai.text.embed(r.description, "OpenAI", {token: $apiKey, model: "text-embedding-3-small"}) ` +
+      `CREATE (user)-[:DINNER {date: date($date), wish: $wish}]->(r) ` +
+      `CALL(r, recipe) { ` +
+      `  UNWIND range(1,SIZE(recipe.ingredients)) AS idx ` +
+      `  WITH idx, recipe.ingredients[idx] AS ingredient ` +
+      `  WHERE ingredient.displayName IS NOT NULL AND ingredient.canonicalName IS NOT NULL ` +
+      `  MERGE (p:Product {name: ingredient.canonicalName}) ` +
+      `  CREATE (i:Ingredient {name: ingredient.displayName}) ` +
+      `  CREATE (r)-[:INGREDIENT {number: idx}]->(i) ` +
+      `  CREATE (i)-[:IS_TYPE]->(p) ` +
+      `  WITH ingredient, i ` +
+      `  WHERE ingredient.unit IS NOT NULL AND NOT isNaN(ingredient.amount) ` +
+      `  MERGE (u:Unit {name: ingredient.unit}) ` +
+      `  CREATE (i)-[:AMOUNT {amount: ingredient.amount}]->(u) ` +
+      `} ` +
+      `CALL(r, recipe) { ` +
+      `  UNWIND recipe.instructions AS instruction ` +
+      `  WITH instruction ORDER BY instruction.stepNumber ` +
+      `  WITH collect(instruction.text) AS instructions ` +
+      `  SET r.instructions = instructions ` +
+      `} ` +
+      `RETURN r.name AS name, elementId(r) AS rid`;
+
+    return await runQuery(statement, params);
+  }
+
+  // -----------------------------
+  // Planning: generate flow
+  // -----------------------------
+  async function generateRows(rows, { replaceExisting = false, showAfter = "week" } = {}) {
+    setStatus("");
+    progressEl.textContent = "";
+    generateBtn.disabled = true;
+    generateWeekBtn.disabled = true;
+
+    try {
+      saveConnToLocalStorage();
+      savePlanningToLocalStorage();
+
+      const { userId } = getBase();
+
+      const apiKey = (openaiKeyEl.value || "").trim();
+      if (!apiKey) throw new Error("Enter an OpenAI API key.");
+
+      const household = asInt(householdEl.value);
+      if (!Number.isFinite(household) || household <= 0) throw new Error("Enter a valid household size (integer > 0).");
+
+      const avoidDays = asInt(avoidDaysEl.value);
+      if (!Number.isFinite(avoidDays) || avoidDays < 0) throw new Error("Enter a valid avoid-days number (integer ≥ 0).");
+
+      await saveUserSettingsToDb();
+      const allergies = getStringListFromBox(allergiesBox);
+      const preferences = getStringListFromBox(preferencesBox);
+
+      if (!rows.length) throw new Error("Add at least one date to generate for.");
+
+      const generatedByDate = []; // [{dateIso,name}]
+      for (let idx = 0; idx < rows.length; idx++) {
+        const { date, wish } = rows[idx];
+        progressEl.textContent = `Generating ${idx + 1} / ${rows.length} for ${date}…`;
+
+        const windowEnd = addDays(date, -1);
+        const windowStart = addDays(date, -avoidDays);
+
+        const dbRecent = (avoidDays > 0 && windowEnd >= windowStart)
+          ? await fetchRecentNames(userId, windowStart, windowEnd)
+          : [];
+
+        const loopRecent = generatedByDate
+          .filter(x => x.dateIso >= windowStart && x.dateIso <= windowEnd)
+          .map(x => x.name);
+
+        const seen = new Set();
+        const recent = [];
+        for (const n of [...dbRecent, ...loopRecent]) {
+          const key = (n || "").trim();
+          if (!key) continue;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          recent.push(key);
+        }
+
+        const params = {
+          apiKey,
+          userId,
+          date,
+          household,
+          allergies,
+          preferences,
+          wish: wish || "",
+          recent,
+          schema: SCHEMA
+        };
+
+        const json = await generateForDate(params, { replaceExisting });
+        const { fields, values } = getTable(json);
+        if (!values.length) throw new Error(`Generation returned no result for ${date}.`);
+
+        const name = values[0][fields.indexOf("name")] || "(Unnamed recipe)";
+        generatedByDate.push({ dateIso: date, name });
+      }
+
+      progressEl.textContent = `Done. Generated ${rows.length} dinner(s).`;
+
+      if (showAfter === "week") {
+        setMode("viewer");
+        if (rows[0]?.date) weekDateEl.value = rows[0].date;
+        await loadWeekDinnersForUser();
+      }
+
+      setStatus("Generation complete.", "ok");
+    } catch (e) {
+      setStatus(e?.message || String(e), "error");
+      progressEl.textContent = "";
+    } finally {
+      generateBtn.disabled = false;
+      generateWeekBtn.disabled = false;
+    }
+  }
+
+  generateBtn.addEventListener("click", async () => {
+    const rows = getGenerationRows();
+    await generateRows(rows, { replaceExisting: false, showAfter: "week" });
+  });
+
+  // -----------------------------
+  // Boot
+  // -----------------------------
+  function boot() {
+    loadConnFromLocalStorage();
+
+    if (!userIdEl.value) userIdEl.value = localStorage.getItem(LS.userId) || "1";
+    if (!weekDateEl.value) weekDateEl.value = todayISO();
+
+    renderStringList(allergiesBox, []);
+    renderStringList(preferencesBox, []);
+
+    setSelectEmpty("Load dinners first…");
+    setMode("viewer");
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
