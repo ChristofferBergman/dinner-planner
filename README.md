@@ -6,18 +6,18 @@ This explains why it is done in just one hugh index.html and why the structure i
 
 This is available as a web app here: https://christofferbergman.github.io/dinner-planner/
 
-If you want to use this you need two things:\
-* An OpenAI API key\
+If you want to use this you need two things:
+* An OpenAI API key
 * A Neo4j instance
 
 The first one has a cost, though it is not huge. You need to create an account on OpenAI and create an API key there.\
 For the second one you can create an Aura Free instance in the cloud following these steps:\
-1. Go to https://neo4j.com/ \
-2. Click Get Started Free\
-3. Register and create an instance (select Free if you want to avoid costs)\
-4. Open your instance in the Query tool and execute this query:\
-ALTER DATABASE neo4j SET DEFAULT LANGUAGE CYPHER 25\
-5. Store the instance URL and your password\
+1. Go to https://neo4j.com/ 
+2. Click Get Started Free
+3. Register and create an instance (select Free if you want to avoid costs)
+4. Open your instance in the Query tool and execute this query:
+ALTER DATABASE neo4j SET DEFAULT LANGUAGE CYPHER 25
+5. Store the instance URL and your password
 
 Now you can use the URL, the password and the API key for the dinner planner tool. The user name and database should both be set to neo4j.
 
