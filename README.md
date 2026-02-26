@@ -15,7 +15,7 @@ For the second one you can create an Aura Free instance in the cloud following t
 1. Go to https://neo4j.com/ 
 2. Click Get Started Free
 3. Register and create an instance (select Free if you want to avoid costs)
-4. Open your instance in the Query tool and execute this query:
+4. Open your instance in the Query tool and execute this query: \
 ALTER DATABASE neo4j SET DEFAULT LANGUAGE CYPHER 25
 5. Store the instance URL and your password
 
