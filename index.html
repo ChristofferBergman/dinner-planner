@@ -1055,7 +1055,7 @@
       `    "Avoid ingredients: " + apoc.text.join($allergies, ", ") + "; " + ` +
       `    "Preferences: " + apoc.text.join($preferences, ", ") + "; " + ` +
       `    "Avoid dishes similar to: " + apoc.text.join($recent, ", ") + "; " + ` +
-      `    "Generate the recipe in this language: " + toString(language) + "; " + ` +
+      `    "Generate the recipe in this language: " + $language + "; " + ` +
       `    "Description of what I want: " + $wish, ` +
       `  $schema, ` +
       `  "OpenAI", ` +
