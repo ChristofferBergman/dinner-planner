@@ -1064,7 +1064,7 @@
       `SET r.embedding = ai.text.embed(r.description, "OpenAI", {token: $apiKey, model: "text-embedding-3-small"}) ` +
       `CREATE (user)-[:DINNER {date: date($date), wish: $wish}]->(r) ` +
       `CALL(r, recipe) { ` +
-      `  UNWIND range(1,SIZE(recipe.ingredients)) AS idx ` +
+      `  UNWIND range(0,SIZE(recipe.ingredients)-1) AS idx ` +
       `  WITH idx, recipe.ingredients[idx] AS ingredient ` +
       `  WHERE ingredient.displayName IS NOT NULL AND ingredient.canonicalName IS NOT NULL ` +
       `  MERGE (p:Product {name: ingredient.canonicalName}) ` +
