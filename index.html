@@ -1060,7 +1060,7 @@
       `  $schema, ` +
       `  "OpenAI", ` +
       `  {token: $apiKey, model: "gpt-5.2"} ) AS recipe ` +
-      `CREATE (r:Recipe {name: recipe.name, description: recipe.description, servings: $household, language: language, cookingTime: recipe.totalTimeMinutes}) ` +
+      `CREATE (r:Recipe {name: recipe.name, description: recipe.description, servings: $household, language: $language, cookingTime: recipe.totalTimeMinutes}) ` +
       `SET r.embedding = ai.text.embed(r.description, "OpenAI", {token: $apiKey, model: "text-embedding-3-small"}) ` +
       `CREATE (user)-[:DINNER {date: date($date), wish: $wish}]->(r) ` +
       `CALL(r, recipe) { ` +
