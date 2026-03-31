@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Dinner Planner Mobile Viewer</title>
+  <style>
+    :root{
+      --bg:#f8fafc; --panel:#fff; --accent:#1e3a8a; --accent-soft:#e0e7ff;
+      --text:#1f2937; --muted:#6b7280; --line:#e5e7eb; --shadow:0 10px 30px rgba(0,0,0,.06);
+      --danger:#b91c1c; --ok:#065f46;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    *{box-sizing:border-box;}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);}
+    body{font-family:Georgia,"Times New Roman",serif;}
+    button,input,select{font:inherit;}
+
+    .app{max-width:780px;margin:0 auto;min-height:100dvh;padding-bottom:calc(24px + var(--safe-bottom));}
+
+    .topbar{
+      position:sticky;top:0;z-index:20;
+      background:rgba(248,250,252,.94);backdrop-filter:blur(10px);
+      border-bottom:1px solid rgba(229,231,235,.9);
+      padding:calc(14px + var(--safe-top)) 16px 14px;
+    }
+    .toprow{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+    h1{margin:0;font-size:28px;color:var(--accent);line-height:1.05;}
+    .sub{margin-top:6px;font-family:system-ui,sans-serif;font-size:13px;color:var(--muted);line-height:1.4;}
+    .iconbtn{
+      border:1px solid var(--line);background:#fff;color:var(--accent);cursor:pointer;
+      width:42px;height:42px;border-radius:12px;font-size:20px;line-height:1;
+      display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow);flex:0 0 auto;
+    }
+
+    .main{padding:16px;display:grid;gap:16px;}
+    .card{
+      background:var(--panel);border:1px solid var(--line);border-radius:18px;
+      box-shadow:var(--shadow);overflow:hidden;
+    }
+    .card .hd{
+      padding:14px 16px;background:var(--accent);color:#fff;
+      font-family:system-ui,sans-serif;font-weight:700;font-size:13px;letter-spacing:.08em;text-transform:uppercase;
+    }
+    .card .bd{padding:16px;}
+
+    label{display:block;font-family:system-ui,sans-serif;font-size:12px;color:var(--muted);margin:0 0 6px;}
+    input,select{
+      width:100%;padding:12px 13px;height:44px;border-radius:12px;border:1px solid var(--line);
+      background:#fff;color:var(--text);font-family:system-ui,sans-serif;font-size:15px;
+    }
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .stack{display:grid;gap:14px;}
+
+    .btnrow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;}
+    .btn, .smallbtn{
+      border:none;background:var(--accent);color:#fff;cursor:pointer;
+      border-radius:12px;font-family:system-ui,sans-serif;font-weight:700;
+    }
+    .btn{width:100%;padding:13px 14px;font-size:15px;}
+    .btn.secondary{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+    .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--line);}
+    .btn:disabled,.smallbtn:disabled{opacity:.6;cursor:not-allowed;}
+    .smallbtn{height:44px;padding:0 14px;font-size:14px;white-space:nowrap;}
+
+    .status{font-family:system-ui,sans-serif;font-size:13px;line-height:1.45;white-space:pre-wrap;color:var(--muted);}
+    .status.ok{color:var(--ok);}
+    .status.error{color:var(--danger);}
+    .mono{font-family:ui-monospace,monospace;}
+
+    .weekHdr{
+      display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+      border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:14px;
+    }
+    .weekTitle{margin:0;color:var(--accent);font-size:24px;line-height:1.05;font-family:system-ui,sans-serif;font-weight:800;}
+    .weekSub{margin:6px 0 0;color:var(--muted);font-family:system-ui,sans-serif;font-size:13px;line-height:1.4;}
+    .weekGrid{display:grid;gap:12px;}
+    .dayCard{
+      border:1px solid var(--line);border-radius:16px;padding:14px;background:#fff;
+      box-shadow:0 6px 16px rgba(0,0,0,.04);cursor:pointer;
+    }
+    .dayCard.active{border-color:rgba(30,58,138,.35);background:linear-gradient(180deg,#fff,#f8faff);}
+    .dayTop{display:flex;justify-content:space-between;gap:10px;align-items:baseline;}
+    .dayDate{font-family:system-ui,sans-serif;font-weight:800;color:var(--accent);font-size:13px;}
+    .dayName{font-size:22px;line-height:1.18;margin:8px 0 6px;color:var(--text);}
+    .dayWish{margin:0;font-family:system-ui,sans-serif;color:var(--muted);font-size:13px;line-height:1.5;white-space:pre-wrap;}
+
+    .empty{
+      padding:20px;border:1px dashed var(--line);border-radius:16px;background:#fff;
+      font-family:system-ui,sans-serif;color:var(--muted);line-height:1.5;
+    }
+
+    .recipe-title{font-size:34px;line-height:1.05;margin:0 0 12px;color:var(--accent);}
+    .recipe-desc{font-family:system-ui,sans-serif;font-size:15px;color:var(--muted);line-height:1.6;margin:0 0 18px;}
+    .meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;font-family:system-ui,sans-serif;font-size:13px;}
+    .pill{background:var(--accent-soft);color:var(--accent);padding:6px 11px;border-radius:999px;font-weight:600;}
+    .sectionTitle{font-family:system-ui,sans-serif;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin:0 0 10px;}
+    .ing{list-style:none;padding:0;margin:0;border-top:1px solid var(--line);}
+    .ing li{padding:11px 0;border-bottom:1px solid var(--line);font-family:system-ui,sans-serif;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
+    .amt{font-variant-numeric:tabular-nums;color:var(--muted);min-width:72px;text-align:right;white-space:nowrap;}
+    .steps{margin:0;padding-left:21px;}
+    .steps li{margin-bottom:14px;line-height:1.65;font-size:17px;}
+    .wishBox{
+      margin:0 0 18px;padding:12px 14px;border-radius:14px;background:#f9fbff;border:1px solid var(--line);
+      font-family:system-ui,sans-serif;color:var(--text);line-height:1.5;
+    }
+
+    .modalWrap{
+      position:fixed;inset:0;z-index:100;display:none;align-items:flex-end;justify-content:center;
+      background:rgba(15,23,42,.46);padding:16px;
+    }
+    .modalWrap.open{display:flex;}
+    .modal{
+      width:min(780px,100%);max-height:90dvh;overflow:auto;background:#fff;border:1px solid var(--line);
+      border-radius:22px;box-shadow:0 25px 60px rgba(0,0,0,.22);
+    }
+    .modalHd{
+      position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);
+      padding:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+    }
+    .modalTitle{margin:0;color:var(--accent);font-family:system-ui,sans-serif;font-weight:800;font-size:20px;}
+    .modalBd{padding:16px;display:grid;gap:14px;}
+    .helper{font-family:system-ui,sans-serif;font-size:13px;color:var(--muted);line-height:1.5;}
+    .closebtn{
+      border:1px solid var(--line);background:#fff;color:var(--accent);cursor:pointer;
+      width:38px;height:38px;border-radius:12px;font-size:18px;line-height:1;
+    }
+
+    @media (max-width:560px){
+      .row,.btnrow{grid-template-columns:1fr;}
+      .recipe-title{font-size:30px;}
+      .dayName{font-size:20px;}
+      .modalWrap{padding:10px;}
+      .main,.topbar{padding-left:14px;padding-right:14px;}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="toprow">
+        <div>
+          <h1>Dinner Planner</h1>
+          <div class="sub">Mobile viewer for dinners stored in Neo4j.</div>
+        </div>
+        <button class="iconbtn" id="settingsBtn" type="button" aria-label="Settings">⚙</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="card">
+        <div class="hd">Week Selection</div>
+        <div class="bd stack">
+          <div class="btnrow">
+            <div>
+              <label for="weekDate">Week (pick any date in week)</label>
+              <input id="weekDate" type="date" />
+            </div>
+            <button class="smallbtn" id="reloadWeekBtn" type="button">Load week</button>
+          </div>
+          <div class="status" id="status"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="hd">Week View</div>
+        <div class="bd" id="weekPanel">
+          <div class="empty">Pick a week and load dinners.</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="hd">Recipe</div>
+        <div class="bd" id="recipePanel">
+          <div class="recipe-title" style="opacity:.6;">No recipe loaded</div>
+          <div class="recipe-desc">Tap a dinner in the week view to open the recipe.</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modalWrap" id="settingsModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="modalHd">
+        <h2 class="modalTitle" id="settingsTitle">Connection Settings</h2>
+        <button class="closebtn" id="closeSettingsBtn" type="button" aria-label="Close">✕</button>
+      </div>
+      <div class="modalBd">
+        <div class="helper">
+          Enter your Neo4j connection details and a separate dinner planner <span class="mono">User ID</span>.
+          Password is stored locally in this browser so the app can reconnect automatically.
+        </div>
+
+        <div>
+          <label for="host">Neo4j URL</label>
+          <input id="host" placeholder="https://xxxx.databases.neo4j.io" autocapitalize="off" autocomplete="off" spellcheck="false" />
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="db">Database</label>
+            <input id="db" value="neo4j" autocapitalize="off" autocomplete="off" spellcheck="false" />
+          </div>
+          <div>
+            <label for="userId">User ID</label>
+            <input id="userId" inputmode="numeric" placeholder="1" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="user">Neo4j User</label>
+            <input id="user" value="neo4j" autocapitalize="off" autocomplete="username" spellcheck="false" />
+          </div>
+          <div>
+            <label for="pass">Neo4j Password</label>
+            <input id="pass" type="password" autocomplete="current-password" />
+          </div>
+        </div>
+
+        <div class="row">
+          <button class="btn secondary" id="testConnectionBtn" type="button">Test connection</button>
+          <button class="btn" id="saveSettingsBtn" type="button">Save and connect</button>
+        </div>
+
+        <div class="status" id="settingsStatus"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (() => {
+    const $ = (id) => document.getElementById(id);
+
+    const LS = {
+      host: 'neo4j_dinner_mobile_host',
+      db: 'neo4j_dinner_mobile_db',
+      username: 'neo4j_dinner_mobile_username',
+      password: 'neo4j_dinner_mobile_password',
+      userId: 'neo4j_dinner_mobile_userId',
+      weekDate: 'neo4j_dinner_mobile_weekDate'
+    };
+
+    const settingsBtn = $('settingsBtn');
+    const closeSettingsBtn = $('closeSettingsBtn');
+    const settingsModal = $('settingsModal');
+    const settingsStatusEl = $('settingsStatus');
+    const statusEl = $('status');
+    const weekPanelEl = $('weekPanel');
+    const recipePanelEl = $('recipePanel');
+    const reloadWeekBtn = $('reloadWeekBtn');
+    const testConnectionBtn = $('testConnectionBtn');
+    const saveSettingsBtn = $('saveSettingsBtn');
+
+    const hostEl = $('host');
+    const dbEl = $('db');
+    const userEl = $('user');
+    const passEl = $('pass');
+    const userIdEl = $('userId');
+    const weekDateEl = $('weekDate');
+
+    let lastLoadedEntries = [];
+    let lastLoadedWeek = null;
+    let activeRid = null;
+
+    function setStatus(msg, kind='') {
+      statusEl.textContent = msg || '';
+      statusEl.className = 'status' + (kind ? (' ' + kind) : '');
+    }
+
+    function setSettingsStatus(msg, kind='') {
+      settingsStatusEl.textContent = msg || '';
+      settingsStatusEl.className = 'status' + (kind ? (' ' + kind) : '');
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? '')
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'",'&#039;');
+    }
+
+    function formatAmount(n) {
+      if (n === null || n === undefined || n === '') return '';
+      const num = Number(n);
+      if (!Number.isFinite(num)) return String(n);
+      return (Math.round(num * 1000) / 1000).toString();
+    }
+
+    function asInt(s) {
+      const n = Number(String(s ?? '').trim());
+      return Number.isFinite(n) ? Math.trunc(n) : NaN;
+    }
+
+    function toISODate(d) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function todayISO() { return toISODate(new Date()); }
+
+    function parseISODate(iso) {
+      const [y,m,d] = String(iso).split('-').map(Number);
+      return new Date(y, (m || 1) - 1, d || 1);
+    }
+
+    function weekBoundsISO(anyDateIso) {
+      const d = parseISODate(anyDateIso);
+      const day = d.getDay();
+      const diffToMon = (day === 0) ? -6 : (1 - day);
+      const mon = new Date(d);
+      mon.setDate(d.getDate() + diffToMon);
+      const sun = new Date(mon);
+      sun.setDate(mon.getDate() + 6);
+      return { start: toISODate(mon), end: toISODate(sun) };
+    }
+
+    function buildAuthHeader() {
+      const raw = `${userEl.value ?? ''}:${passEl.value ?? ''}`;
+      return 'Basic ' + btoa(unescape(encodeURIComponent(raw)));
+    }
+
+    function getBase() {
+      const host = (hostEl.value || '').trim().replace(/\/+$/g, '');
+      const db = (dbEl.value || 'neo4j').trim();
+      const username = (userEl.value || '').trim();
+      const password = passEl.value || '';
+      const userId = asInt(userIdEl.value);
+
+      if (!host) throw new Error('Please enter Neo4j URL.');
+      if (!db) throw new Error('Please enter Database.');
+      if (!username) throw new Error('Please enter Neo4j User.');
+      if (!password) throw new Error('Please enter Neo4j Password.');
+      if (!Number.isFinite(userId)) throw new Error('Please enter a numeric User ID.');
+
+      return { host, db, username, password, userId };
+    }
+
+    async function runQuery(statement, parameters) {
+      const { host, db } = getBase();
+      const url = `${host}/db/${encodeURIComponent(db)}/query/v2`;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': buildAuthHeader()
+        },
+        body: JSON.stringify({ statement, parameters: parameters || {} })
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (res.status === 401) throw new Error('401 Unauthorized. Check Neo4j user or password.');
+      if (!res.ok && !json?.errors?.length) throw new Error(`Connection failed (${res.status}).`);
+      if (Array.isArray(json?.errors) && json.errors.length) {
+        const msg = json.errors.map(e => `${e.code}: ${e.message}`).join('\n');
+        throw new Error(msg);
+      }
+      return json;
+    }
+
+    function getTable(json) {
+      return { fields: json?.data?.fields || [], values: json?.data?.values || [] };
+    }
+
+    function saveSettings() {
+      localStorage.setItem(LS.host, hostEl.value || '');
+      localStorage.setItem(LS.db, dbEl.value || '');
+      localStorage.setItem(LS.username, userEl.value || '');
+      localStorage.setItem(LS.password, passEl.value || '');
+      localStorage.setItem(LS.userId, userIdEl.value || '');
+      localStorage.setItem(LS.weekDate, weekDateEl.value || '');
+    }
+
+    function loadSettings() {
+      const host = localStorage.getItem(LS.host);
+      const db = localStorage.getItem(LS.db);
+      const username = localStorage.getItem(LS.username);
+      const password = localStorage.getItem(LS.password);
+      const userId = localStorage.getItem(LS.userId);
+      const weekDate = localStorage.getItem(LS.weekDate);
+
+      if (host) hostEl.value = host;
+      if (db) dbEl.value = db;
+      if (username) userEl.value = username;
+      if (password) passEl.value = password;
+      if (userId) userIdEl.value = userId;
+      weekDateEl.value = weekDate || todayISO();
+    }
+
+    function hasSavedSettings() {
+      return !!(
+        (hostEl.value || '').trim() &&
+        (dbEl.value || '').trim() &&
+        (userEl.value || '').trim() &&
+        (passEl.value || '').trim() &&
+        (userIdEl.value || '').trim()
+      );
+    }
+
+    function openSettings(message='', kind='') {
+      setSettingsStatus(message, kind);
+      settingsModal.classList.add('open');
+      settingsModal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      setTimeout(() => {
+        if (!hostEl.value.trim()) hostEl.focus();
+        else if (!passEl.value) passEl.focus();
+      }, 20);
+    }
+
+    function closeSettings() {
+      settingsModal.classList.remove('open');
+      settingsModal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    async function testConnection(showSuccess = true) {
+      setSettingsStatus('Testing connection…');
+      testConnectionBtn.disabled = true;
+      saveSettingsBtn.disabled = true;
+      try {
+        const { userId } = getBase();
+        const statement = 'MATCH (u:User {id: $userId}) RETURN u.id AS id LIMIT 1';
+        const json = await runQuery(statement, { userId });
+        const { values } = getTable(json);
+        if (!values.length) throw new Error(`Connected, but User ${userId} was not found.`);
+        if (showSuccess) setSettingsStatus('Connection successful.', 'ok');
+        return true;
+      } catch (e) {
+        setSettingsStatus(e?.message || String(e), 'error');
+        return false;
+      } finally {
+        testConnectionBtn.disabled = false;
+        saveSettingsBtn.disabled = false;
+      }
+    }
+
+    async function saveAndConnect() {
+      saveSettings();
+      const ok = await testConnection(false);
+      if (!ok) {
+        openSettings(settingsStatusEl.textContent, 'error');
+        return;
+      }
+      setStatus('Connected successfully.', 'ok');
+      closeSettings();
+      await loadWeekDinnersForUser();
+    }
+
+    function renderWeekView(entries, start, end) {
+      lastLoadedEntries = entries.slice();
+      lastLoadedWeek = { start, end };
+
+      const hdr = `
+        <div class="weekHdr">
+          <div>
+            <div class="weekTitle">Week plan</div>
+            <div class="weekSub">${escapeHtml(start)} to ${escapeHtml(end)} — ${entries.length} dinner(s)</div>
+          </div>
+        </div>
+      `;
+
+      if (!entries.length) {
+        weekPanelEl.innerHTML = hdr + `<div class="empty">No dinners found for this week.</div>`;
+        return;
+      }
+
+      const cards = entries.map(e => {
+        const wish = (e.wish || '').trim();
+        const active = activeRid && activeRid === e.rid ? ' active' : '';
+        return `
+          <button class="dayCard${active}" data-rid="${escapeHtml(e.rid)}" type="button">
+            <div class="dayTop">
+              <div class="dayDate">${escapeHtml(e.date)}</div>
+            </div>
+            <div class="dayName">${escapeHtml(e.name)}</div>
+            <p class="dayWish">${wish ? escapeHtml(wish) : '<span style="opacity:.7;">(No wish stored)</span>'}</p>
+          </button>
+        `;
+      }).join('');
+
+      weekPanelEl.innerHTML = hdr + `<div class="weekGrid">${cards}</div>`;
+
+      Array.from(weekPanelEl.querySelectorAll('[data-rid]')).forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const rid = btn.getAttribute('data-rid');
+          if (!rid) return;
+          await loadRecipeByRidForUser(rid);
+        });
+      });
+    }
+
+    function renderRecipe(recipe, ingredients, dinnerDate, dinnerWish) {
+      const instr = Array.isArray(recipe?.instructions) ? recipe.instructions : [];
+      const safeTitle = escapeHtml(recipe?.name || 'Untitled recipe');
+      const safeDesc = escapeHtml(recipe?.description || '');
+      const wish = (dinnerWish || '').trim();
+
+      recipePanelEl.innerHTML = `
+        <div class="recipe-title">${safeTitle}</div>
+        ${safeDesc ? `<div class="recipe-desc">${safeDesc}</div>` : ''}
+
+        <div class="meta">
+          ${dinnerDate ? `<span class="pill">Dinner date ${escapeHtml(dinnerDate)}</span>` : ''}
+          ${recipe?.servings != null ? `<span class="pill">Serves ${escapeHtml(recipe.servings)}</span>` : ''}
+          ${recipe?.cookingTime != null ? `<span class="pill">${escapeHtml(recipe.cookingTime)} min</span>` : ''}
+        </div>
+
+        ${wish ? `<div class="wishBox"><strong>Wish:</strong> ${escapeHtml(wish)}</div>` : ''}
+
+        <div style="display:grid;gap:22px;">
+          <div>
+            <h3 class="sectionTitle">Ingredients</h3>
+            ${ingredients.length ? `
+              <ul class="ing">
+                ${ingredients.map(i => {
+                  const amt = formatAmount(i.amount);
+                  const unit = (i.unit ?? '').toString();
+                  const amtText = (amt || unit) ? `${escapeHtml(amt)} ${escapeHtml(unit)}`.trim() : '';
+                  return `
+                    <li>
+                      <span>${escapeHtml(i.name ?? '')}</span>
+                      <span class="amt">${amtText || '&nbsp;'}</span>
+                    </li>`;
+                }).join('')}
+              </ul>
+            ` : `<div class="empty">No ingredients found.</div>`}
+          </div>
+
+          <div>
+            <h3 class="sectionTitle">Method</h3>
+            ${instr.length ? `<ol class="steps">${instr.map(step => `<li>${escapeHtml(step)}</li>`).join('')}</ol>` : `<div class="empty">No instructions found.</div>`}
+          </div>
+        </div>
+      `;
+    }
+
+    async function loadWeekDinnersForUser() {
+      setStatus('Loading dinners…');
+      reloadWeekBtn.disabled = true;
+
+      try {
+        const { userId } = getBase();
+        const anyDate = weekDateEl.value || todayISO();
+        const { start, end } = weekBoundsISO(anyDate);
+        saveSettings();
+
+        const statement =
+          `MATCH (u:User {id: $userId})-[d:DINNER]->(r:Recipe) ` +
+          `WHERE d.date >= date($start) AND d.date <= date($end) ` +
+          `RETURN elementId(r) AS rid, toString(d.date) AS date, r.name AS name, coalesce(d.wish, "") AS wish ` +
+          `ORDER BY d.date ASC, name ASC`;
+
+        const json = await runQuery(statement, { userId, start, end });
+        const { fields, values } = getTable(json);
+
+        const ridIdx = fields.indexOf('rid');
+        const dateIdx = fields.indexOf('date');
+        const nameIdx = fields.indexOf('name');
+        const wishIdx = fields.indexOf('wish');
+
+        const entries = values.map(row => ({
+          rid: row[ridIdx],
+          date: row[dateIdx] || '',
+          name: row[nameIdx] || '(Unnamed recipe)',
+          wish: row[wishIdx] || ''
+        })).filter(e => e.rid && e.date);
+
+        renderWeekView(entries, start, end);
+        activeRid = null;
+        recipePanelEl.innerHTML = `
+          <div class="recipe-title" style="opacity:.6;">No recipe loaded</div>
+          <div class="recipe-desc">Tap a dinner in the week view to open the recipe.</div>
+        `;
+
+        if (!entries.length) {
+          setStatus(`No dinners found in week ${start} to ${end}.`, 'error');
+          return;
+        }
+
+        setStatus(`Loaded ${entries.length} dinner(s) for ${start} to ${end}.`, 'ok');
+      } catch (e) {
+        weekPanelEl.innerHTML = `<div class="empty">Unable to load dinners.</div>`;
+        recipePanelEl.innerHTML = `
+          <div class="recipe-title" style="opacity:.6;">No recipe loaded</div>
+          <div class="recipe-desc">Open settings and verify the connection details.</div>
+        `;
+        setStatus(e?.message || String(e), 'error');
+        openSettings(e?.message || String(e), 'error');
+      } finally {
+        reloadWeekBtn.disabled = false;
+      }
+    }
+
+    async function loadRecipeByRidForUser(rid) {
+      setStatus('Loading recipe…');
+      try {
+        const { userId } = getBase();
+
+        const statement =
+          `MATCH (u:User {id: $userId})-[d:DINNER]->(r:Recipe) ` +
+          `WHERE elementId(r) = $rid ` +
+          `OPTIONAL MATCH (r)-[ir:INGREDIENT]->(i:Ingredient) ` +
+          `OPTIONAL MATCH (i)-[a:AMOUNT]->(un:Unit) ` +
+          `WITH d, r, ir, i, a, un ORDER BY ir.number ASC ` +
+          `RETURN ` +
+          `toString(d.date) AS dinnerDate, coalesce(d.wish, "") AS dinnerWish, ` +
+          `r{.name,.description,.servings,.cookingTime,.instructions, elementId: elementId(r)} AS recipe, ` +
+          `collect(CASE WHEN i IS NULL THEN null ELSE {name:i.name, amount:a.amount, unit:un.name} END) AS ingredients`;
+
+        const json = await runQuery(statement, { userId, rid });
+        const { fields, values } = getTable(json);
+        if (!values.length) throw new Error('No recipe returned for this dinner.');
+
+        const row0 = values[0];
+        const dinnerDate = row0[fields.indexOf('dinnerDate')] || '';
+        const dinnerWish = row0[fields.indexOf('dinnerWish')] || '';
+        const recipe = row0[fields.indexOf('recipe')];
+        const ingredients = (row0[fields.indexOf('ingredients')] || []).filter(Boolean);
+
+        activeRid = rid;
+        renderWeekView(lastLoadedEntries, lastLoadedWeek?.start || '', lastLoadedWeek?.end || '');
+        renderRecipe(recipe, ingredients, dinnerDate, dinnerWish);
+        setStatus('Recipe loaded.', 'ok');
+        recipePanelEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (e) {
+        setStatus(e?.message || String(e), 'error');
+      }
+    }
+
+    function boot() {
+      loadSettings();
+      if (!weekDateEl.value) weekDateEl.value = todayISO();
+
+      settingsBtn.addEventListener('click', () => openSettings());
+      closeSettingsBtn.addEventListener('click', () => closeSettings());
+      settingsModal.addEventListener('click', (e) => {
+        if (e.target === settingsModal) closeSettings();
+      });
+
+      testConnectionBtn.addEventListener('click', async () => {
+        saveSettings();
+        await testConnection(true);
+      });
+
+      saveSettingsBtn.addEventListener('click', async () => {
+        await saveAndConnect();
+      });
+
+      reloadWeekBtn.addEventListener('click', async () => {
+        await loadWeekDinnersForUser();
+      });
+
+      [hostEl, dbEl, userEl, passEl, userIdEl, weekDateEl].forEach(el => {
+        el.addEventListener('change', saveSettings);
+        el.addEventListener('blur', saveSettings);
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && settingsModal.classList.contains('open')) closeSettings();
+      });
+
+      if (!hasSavedSettings()) {
+        openSettings('Enter your settings to connect.', '');
+        return;
+      }
+
+      testConnection(false).then(ok => {
+        if (ok) {
+          setStatus('Connected successfully.', 'ok');
+          loadWeekDinnersForUser();
+        } else {
+          openSettings(settingsStatusEl.textContent || 'Connection failed.', 'error');
+        }
+      });
+    }
+
+    boot();
+  })();
+  </script>
+</body>
+</html>
