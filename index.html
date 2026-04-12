@@ -1040,8 +1040,8 @@
         `OPTIONAL MATCH (user)-[oldRel:DINNER]->(oldR:Recipe) ` +
         `WHERE oldRel.date = date($date) ` +
         `WITH user, oldRel, oldR ` +
-        `CALL { WITH oldRel WHERE oldRel IS NOT NULL DELETE oldRel RETURN 0 AS _ } ` +
-        `CALL { WITH oldR WHERE oldR IS NOT NULL AND NOT (oldR)<-[:DINNER]-() DETACH DELETE oldR RETURN 0 AS __ } ` +
+        `CALL(oldRel) { WITH oldRel WHERE oldRel IS NOT NULL DELETE oldRel RETURN 0 AS _ } ` +
+        `CALL(oldR) { WITH oldR WHERE oldR IS NOT NULL AND NOT (oldR)<-[:DINNER]-() DETACH DELETE oldR RETURN 0 AS __ } ` +
         `WITH user `
       )
       : `MATCH (user:User {id: $userId}) WITH user `;
